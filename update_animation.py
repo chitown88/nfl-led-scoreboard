@@ -23,7 +23,7 @@ POSTS = (255, 200, 0)
 TURF = (0, 90, 0)
 YARD_LINE = (220, 220, 220)
 FRAME_SECONDS = 0.08
-MIN_UPDATING_SECONDS = 3   # spin at least this long, even if the download is quicker
+MIN_UPDATING_SECONDS = 10   # spin at least this long, even if the download is quicker
 
 
 def football(length, angle):
