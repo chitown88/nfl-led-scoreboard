@@ -69,11 +69,20 @@ def git(*args):
     return result.stdout.strip()
 
 
-def check_for_update(force=False):
+def download():
+    """Make this folder an exact copy of GitHub. Returns the commit before and after."""
+    before = git('rev-parse', 'HEAD')
+    git('fetch', '--quiet', 'origin', BRANCH)
+    git('reset', '--hard', f'origin/{BRANCH}')
+    return before, git('rev-parse', 'HEAD')
+
+
+def check_for_update(matrix=None, force=False):
     """Update from GitHub and restart if version.json there is different.
 
     Called at startup (force=True) and then from the main loop; between those
-    it only actually checks every CHECK_EVERY_HOURS.
+    it only actually checks every CHECK_EVERY_HOURS. With a matrix, the update
+    animation plays while it downloads.
     """
     global _last_check
     if not force and time.time() - _last_check < CHECK_EVERY_HOURS * 3600:
@@ -92,13 +101,25 @@ def check_for_update(force=False):
         return
 
     print(f'Updating from {local} to {remote}...')
+    animation = None
+    if matrix is not None:
+        try:
+            import update_animation as animation
+            animation.announce(matrix, remote)
+        except Exception as e:   # a broken animation must never stop an update
+            print(f'Update animation unavailable: {e}')
+            animation = None
+
     try:
-        before = git('rev-parse', 'HEAD')
-        git('fetch', '--quiet', 'origin', BRANCH)
-        git('reset', '--hard', f'origin/{BRANCH}')
-        after = git('rev-parse', 'HEAD')
+        if animation:
+            with animation.Updating(matrix, remote):
+                before, after = download()
+        else:
+            before, after = download()
     except Exception as e:
         print(f'Update failed, keeping current version: {e}')
+        if animation:
+            animation.failed(matrix, local)
         return
 
     if before == after:
@@ -107,5 +128,7 @@ def check_for_update(force=False):
         return
 
     print(f'Updated to {local_version()}. Restarting...')
+    if animation:
+        animation.done(matrix, local_version())
     sys.stdout.flush()
     os.execv(sys.executable, [sys.executable] + sys.argv)

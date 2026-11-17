@@ -25,6 +25,7 @@ import time
 from PIL import Image, ImageDraw
 
 import render
+import update_animation
 import scoreboard_logo_config
 import team_summary_logo_config
 import team_color_config
@@ -32,7 +33,7 @@ from paths import BASE_DIR
 
 TEST_DATA_FILE = os.path.join(BASE_DIR, 'test_data.json')
 OUTPUT_DIR = os.path.join(BASE_DIR, 'test_output')
-ALL_SCREENS = ['pre', 'post', 'live', 'summary']
+ALL_SCREENS = ['pre', 'post', 'live', 'summary', 'update']
 WIDTH, HEIGHT = 64, 32
 SUMMARY_SCROLL = [('top', 0), ('middle', -21), ('bottom', -42)]   # where team_summary.py pauses
 
@@ -192,6 +193,15 @@ def save_images(screens=None, teams=None):
     reload_layouts()
 
     for screen in screens:
+        if screen == 'update':
+            frames = update_animation.preview_frames()
+            tiles = [(f'frame {k + 1}', image) for k, (image, _) in enumerate(frames) if k % 2 == 0]
+            sheet = contact_sheet(tiles, 'UPDATE ANIMATION - every other frame, success then failure', scale, 8)
+            path = os.path.join(OUTPUT_DIR, 'test_update.png')
+            sheet.save(path)
+            print(f'Saved {path}')
+            continue
+
         scenarios = test_data['team_summary' if screen == 'summary' else screen]
         tiles = []
         for n, team in enumerate(teams):
@@ -233,6 +243,10 @@ def run(matrix, screens=None, teams=None):
 
             for screen in screens:
                 print(f'\n=== {screen.upper()} ===')
+                if screen == 'update':
+                    print('  update animation (success, then failure)')
+                    update_animation.play(matrix, update_animation.preview_frames())
+                    continue
                 scenarios = test_data['team_summary' if screen == 'summary' else screen]
 
                 for n, team in enumerate(teams):

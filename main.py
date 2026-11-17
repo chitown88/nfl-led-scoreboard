@@ -18,9 +18,9 @@ import argparse
 arg_parser = argparse.ArgumentParser(description='NFL LED Scoreboard')
 arg_parser.add_argument('--production', '-production', action='store_true',
                         help='drive the physical LED matrix instead of the emulator')
-arg_parser.add_argument('--test', nargs='*', choices=['pre', 'post', 'live', 'summary'], metavar='SCREEN',
+arg_parser.add_argument('--test', nargs='*', choices=['pre', 'post', 'live', 'summary', 'update'], metavar='SCREEN',
                         help='show dummy data from test_data.json instead of ESPN. '
-                             'Optionally pick screens: pre post live summary (default: all)')
+                             'Optionally pick screens: pre post live summary update (default: all)')
 arg_parser.add_argument('--teams', nargs='+', type=str.upper, metavar='TEAM',
                         help='with --test, only show these teams, e.g. --teams NYG LAR')
 arg_parser.add_argument('--images', action='store_true',
@@ -56,10 +56,6 @@ if args.production:
     except ImportError:
         sys.exit('--production needs the rgbmatrix library - is this running on the Pi?')
     print('Running on the LED matrix')
-
-    # Pi only: update from GitHub first if version.json there is newer
-    import updater
-    updater.check_for_update(force=True)
 else:
     from RGBMatrixEmulator import RGBMatrix, RGBMatrixOptions
     print('Running in the emulator')
@@ -88,6 +84,11 @@ if args.test is not None:
     import test_mode
     test_mode.run(matrix, screens=args.test, teams=args.teams)
     sys.exit(0)
+
+# Pi only: update from GitHub first if version.json there is newer
+if args.production:
+    import updater
+    updater.check_for_update(matrix, force=True)
 
 import espn_api
 
@@ -132,7 +133,7 @@ if __name__ == "__main__":
     while True:
         try:
             if args.production:
-                updater.check_for_update()   # only really checks every few hours
+                updater.check_for_update(matrix)   # only really checks every few hours
             liveGames = run(liveGames)
     
         except KeyboardInterrupt:
