@@ -23,6 +23,7 @@ POSTS = (255, 200, 0)
 TURF = (0, 90, 0)
 YARD_LINE = (220, 220, 220)
 FRAME_SECONDS = 0.08
+MIN_UPDATING_SECONDS = 3   # spin at least this long, even if the download is quicker
 
 
 def football(length, angle):
@@ -154,8 +155,8 @@ class Updating:
         with update_animation.Updating(matrix, '01.01.07'):
             ...download...
     """
-    def __init__(self, matrix, version):
-        self.matrix, self.version = matrix, version
+    def __init__(self, matrix, version, min_seconds=MIN_UPDATING_SECONDS):
+        self.matrix, self.version, self.min_seconds = matrix, version, min_seconds
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._spin, daemon=True)
 
@@ -167,10 +168,16 @@ class Updating:
             time.sleep(0.1)
 
     def __enter__(self):
+        self._started = time.time()
         self._thread.start()
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, exc_type, *exc):
+        # let the ball spin for the minimum time (not if the download failed)
+        if exc_type is None:
+            remaining = self.min_seconds - (time.time() - self._started)
+            if remaining > 0:
+                time.sleep(remaining)
         self._stop.set()
         self._thread.join()
         return False
