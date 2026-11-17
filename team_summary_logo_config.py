@@ -1,0 +1,108 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jan  6 16:49:16 2022
+
+@author: Jason
+"""
+
+layout_team_summary = {
+    'ARI':{
+        'position':(24,-8),
+        'zoom':1.3}, 
+    'ATL':{
+        'position':(31,-1),
+        'zoom':1.1},
+    'BAL':{
+        'position':(30,-10),
+        'zoom':1.5},
+    'BUF':{
+        'position':(20,-7),
+        'zoom':1.5},
+    'CAR':{
+        'position':(22,-8),
+        'zoom':1.5},
+    'CHI':{
+        'position':(37,-8),
+        'zoom':1.5},
+    'CIN':{
+        'position':(35,-6),
+        'zoom':1.4},
+    'CLE':{
+        'position':(28,-5),
+        'zoom':1.3},
+    'DAL':{
+        'position':(36,-8),
+        'zoom':1.5},
+    'DEN':{
+        'position':(24,-10),
+        'zoom':1.5},
+    'DET':{
+        'position':(20,-6),
+        'zoom':1.5},
+    'GB':{
+        'position':(40,-8),
+        'zoom':1.5},
+    'HOU':{
+        'position':(40,-4),
+        'zoom':1.2},
+    'IND':{
+        'position':(45,-1),
+        'zoom':1.0},
+    'JAX':{
+        'position':(24,-8),
+        'zoom':1.5},
+    'KC':{
+        'position':(32,-8),
+        'zoom':1.5},
+    'LV':{
+        'position':(40,-8),
+        'zoom':1.3},
+    'LAC':{
+        'position':(40,-9),
+        'zoom':1.5},
+    'LAR':{
+        'position':(36,-5),
+        'zoom':1.3},
+    'MIA':{
+        'position':(26,-8),
+        'zoom':1.5},
+    'MIN':{
+        'position':(27,-7),
+        'zoom':1.3},
+    'NE':{
+        'position':(21,-10),
+        'zoom':1.5},
+    'NO':{
+        'position':(36,-10),
+        'zoom':1.5},
+    'NYG':{
+        'position':(36,-3),
+        'zoom':1.2},
+    'NYJ':{
+        'position':(40,-8),
+        'zoom':1.5},
+    'PHI':{
+        'position':(40,-10),
+        'zoom':1.5},
+    'PIT':{
+        'position':(42,0),
+        'zoom':1.0},
+    'SF':{
+        'position':(38,-8),
+        'zoom':1.5},
+    'SEA':{
+        'position':(20,-8),
+        'zoom':1.5},
+    'TB':{
+        'position':(32,-8),
+        'zoom':1.5},
+    'TEN':{
+        'position':(24,-9),
+        'zoom':1.3},
+    'WSH':{
+        'position':(38,-8),
+        'zoom':1.5}
+    
+    }
+
+

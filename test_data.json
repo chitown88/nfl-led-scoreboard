@@ -1,0 +1,92 @@
+{
+    "_about": "Dummy data for test mode (python main.py --test). Each team plays itself, so one screen shows its logo in both the away and home spots. Scenarios are rotated across the teams, so different teams get different scores/situations. Add, remove or edit scenarios freely.",
+
+    "seconds_per_screen": 3,
+    "team_summary_pause": 3,
+    "carousel_games": 14,
+    "image_scale": 3,
+
+    "pre": [
+        {"gameDate": "11.23", "gameTime": "1:00 PM"},
+        {"gameDate": "11.23", "gameTime": "6:05 PM"},
+        {"gameDate": "12.25", "gameTime": "10:15 PM"},
+        {"gameDate": "TODAY", "gameTime": "9:30 PM"}
+    ],
+
+    "post": [
+        {"away": "24", "home": "17"},
+        {"away": "3", "home": "10"},
+        {"away": "38", "home": "35"},
+        {"away": "0", "home": "6"},
+        {"away": "27", "home": "27"}
+    ],
+
+    "live": [
+        {"_note": "normal drive, away ball",
+         "away": "7", "home": "3", "quarter": 1, "timeRemaining": "12:34",
+         "possession": "away", "down": 1, "yardsToGo": 10,
+         "shortDownDistanceText": "1st & 10", "possessionText": "{team} 25", "isRedZone": false},
+
+        {"_note": "4th down (yellow), home ball",
+         "away": "14", "home": "10", "quarter": 2, "timeRemaining": "0:42",
+         "possession": "home", "down": 4, "yardsToGo": 2,
+         "shortDownDistanceText": "4th & 2", "possessionText": "{team} 41", "isRedZone": false},
+
+        {"_note": "red zone (red text), away ball",
+         "away": "21", "home": "24", "quarter": 3, "timeRemaining": "8:05",
+         "possession": "away", "down": 2, "yardsToGo": 7,
+         "shortDownDistanceText": "2nd & 7", "possessionText": "{team} 12", "isRedZone": true},
+
+        {"_note": "goal to go, home ball",
+         "away": "28", "home": "31", "quarter": 4, "timeRemaining": "1:58",
+         "possession": "home", "down": 3, "yardsToGo": 3,
+         "shortDownDistanceText": "3rd & Goal", "possessionText": "{team} 3", "isRedZone": true},
+
+        {"_note": "halftime",
+         "away": "10", "home": "13", "quarter": 2, "timeRemaining": "0:00",
+         "halftime": true},
+
+        {"_note": "overtime, away ball",
+         "away": "34", "home": "34", "quarter": 5, "timeRemaining": "7:16",
+         "possession": "away", "down": 1, "yardsToGo": 10,
+         "shortDownDistanceText": "1st & 10", "possessionText": "{team} 35", "isRedZone": false}
+    ],
+
+    "team_summary": [
+        {"_note": "regular season, won last game",
+         "place": "1st PLACE", "record": "10-1",
+         "lastGameHomeAway": "@", "lastGameOpp": "GB", "lastGameOutcome": "W", "lastGameScore": "24-17",
+         "nextGameDate": "Nov 23", "nextGameTime": "6:00 PM", "nextGameHomeAway": "VS", "nextGameOpp": "DET",
+         "nextGameText": "", "postSeason": false, "endSeason": false},
+
+        {"_note": "regular season, lost last game",
+         "place": "3rd PLACE", "record": "5-6",
+         "lastGameHomeAway": "VS", "lastGameOpp": "MIN", "lastGameOutcome": "L", "lastGameScore": "13-30",
+         "nextGameDate": "Dec 25", "nextGameTime": "10:15 PM", "nextGameHomeAway": "@", "nextGameOpp": "WSH",
+         "nextGameText": "", "postSeason": false, "endSeason": false},
+
+        {"_note": "tie, longest record",
+         "place": "2nd PLACE", "record": "12-4-1",
+         "lastGameHomeAway": "@", "lastGameOpp": "JAX", "lastGameOutcome": "T", "lastGameScore": "20-20",
+         "nextGameDate": "Jan 04", "nextGameTime": "1:00 PM", "nextGameHomeAway": "VS", "nextGameOpp": "LAR",
+         "nextGameText": "", "postSeason": false, "endSeason": false},
+
+        {"_note": "game in progress",
+         "place": "4th PLACE", "record": "2-9",
+         "lastGameHomeAway": "VS", "lastGameOpp": "TB", "lastGameOutcome": "^", "lastGameScore": "7-14",
+         "nextGameDate": "Nov 30", "nextGameTime": "9:25 PM", "nextGameHomeAway": "@", "nextGameOpp": "SF",
+         "nextGameText": "", "postSeason": false, "endSeason": false},
+
+        {"_note": "playoffs, next game scheduled",
+         "place": "1st PLACE", "record": "13-4",
+         "lastGameHomeAway": "VS", "lastGameOpp": "PIT", "lastGameOutcome": "W", "lastGameScore": "31-28",
+         "nextGameDate": "Jan 18", "nextGameTime": "8:15 PM", "nextGameHomeAway": "VS", "nextGameOpp": "BUF",
+         "nextGameText": "DIVISIONAL ROUND", "postSeason": true, "endSeason": false},
+
+        {"_note": "season over",
+         "place": "4th PLACE", "record": "4-13",
+         "lastGameHomeAway": "@", "lastGameOpp": "NO", "lastGameOutcome": "L", "lastGameScore": "9-27",
+         "nextGameDate": "", "nextGameTime": "", "nextGameHomeAway": "", "nextGameOpp": "",
+         "nextGameText": "Eliminated from playoffs", "postSeason": true, "endSeason": true}
+    ]
+}
