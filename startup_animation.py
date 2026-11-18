@@ -26,7 +26,7 @@ import traceback
 
 from PIL import Image, ImageDraw
 
-from fonts import font_04B_24__8, font_score_large_16, , font_score_large_14
+from fonts import font_04B_24__8, font_score_large_16, font_score_large_14
 from paths import BASE_DIR
 
 W, H = 64, 32
