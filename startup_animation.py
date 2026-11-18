@@ -121,7 +121,7 @@ def title_frames(ver):
         # darken the stadium behind the text
         img = Image.blend(img, blank(), 0.75)
         d = ImageDraw.Draw(img)
-        d.text((W // 2, 2), 'NFL', font=6, fill='white', anchor='mt')
+        d.text((W // 2, 2), 'NFL', font=font_score_large_16, fill='white', anchor='mt')
         d.text((W // 2, 16), 'SCOREBOARD', font=font_04B_24__8, fill='white', anchor='mt')
         if i >= 4:
             d.text((W // 2, 24), f'v{ver}', font=font_04B_24__8, fill=YELLOW, anchor='mt')
