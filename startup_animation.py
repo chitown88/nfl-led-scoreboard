@@ -1,56 +1,45 @@
 # -*- coding: utf-8 -*-
 """
-Startup animation: shown while the scoreboard boots.
+Startup animation, shown while the scoreboard boots. Same broadcast style as
+the update animation (it shares fx.py and the stadium from update_animation).
 
-    1. Stadium lights switch on one tower at a time and the field lights up
-    2. Title card with the version number
-    3. Loading: a mini football field is the progress bar; the ball moves
-       downfield as each real loading step finishes
-    4. "TOUCHDOWN!" when the ball reaches the end zone
+    1. COLD OPEN  dark stadium, camera pushing in; the light towers bang on one
+                  by one and the field, crowd and camera flashes come up
+    2. TITLE      wipe to the title card: "NFL", a gold SCOREBOARD banner, version
+    3. LOADING    news banner with the real step, a TV down-and-distance box
+                  (1ST & 10 ... 4TH & GOAL) and the ball carried down a mini field
+       NO SIGNAL  banner turns red, a penalty flag lands: DELAY OF GAME, retry countdown
+    4. TOUCHDOWN  ball crosses the goal line, flash, gold TOUCHDOWN! with confetti,
+                  fade into the scoreboard
 
-If there's no internet yet (common straight after the Pi boots), it shows
-"NO CONNECTION" and retries instead of crashing.
+If there's no internet yet (common straight after the Pi boots), it retries
+instead of crashing. Drawing happens on the main thread and the loading work in
+a background thread, so the emulator window stays responsive on Windows.
 
-The drawing always happens on the main thread and the loading work runs in a
-background thread, so the emulator window stays responsive on Windows.
-
-Preview it with:  python main.py --test startup
+Preview with:  python main.py --test startup
 """
 import json
 import math
 import os
-import random
 import threading
 import time
 import traceback
 
 from PIL import Image, ImageDraw
 
-from fonts import font_04B_24__8, font_score_large_16, font_score_large_14
+import fx
+from fx import W, GOLD, SILVER
 from paths import BASE_DIR
 
-W, H = 64, 32
-FRAME_SECONDS = 0.08
-MIN_LOADING_SECONDS = 2.5        # show the loading field at least this long
+FRAME = 0.07
+MIN_LOADING_SECONDS = 2.5        # show the loading screen at least this long
 RETRY_SECONDS = 10               # wait between retries when there's no connection
 
+NAVY = (0, 30, 80)
 YELLOW = (255, 200, 0)
-LIGHT = (255, 255, 210)
-POLE = (90, 90, 90)
-BALL = (150, 75, 20)
-LACES = (255, 255, 255)
-GRASS = (0, 110, 0)
-GRASS_DARK = (0, 25, 0)
-LINE = (190, 190, 190)
-END_ZONE_LEFT = (0, 40, 120)
-END_ZONE_RIGHT = (150, 20, 20)
+ALERT_RED = (190, 0, 0)
 
-TOWERS = [6, 22, 42, 58]         # x of each light tower
-HORIZON = 17
-
-_rng = random.Random(3)
-CROWD = [(x, y, _rng.choice([(120, 30, 30), (30, 30, 120), (90, 90, 90), (130, 110, 30)]))
-         for y in range(HORIZON - 4, HORIZON) for x in range(64) if _rng.random() < 0.55]
+play = fx.play
 
 
 def version():
@@ -61,137 +50,216 @@ def version():
         return ''
 
 
-def blank():
-    return Image.new('RGB', (W, H), 'black')
+# ============================================================ 1. COLD OPEN ===
+
+def _stadium():
+    import update_animation as ua      # the same stadium as the field goal
+    return ua
 
 
-def show(matrix, img, seconds):
-    matrix.SetImage(img, 0, 0)
-    time.sleep(seconds)
+def cold_open_frames():
+    ua = _stadium()
+    towers = ua.LIGHTS
+    on_at = [14, 22, 30, 38]            # frame each tower switches on
+    steps = 56
+    for i in range(steps):
+        cam_z = fx.lerp(0, 35, fx.ease_in_out(i / (steps - 1)))       # slow push in
+        img = fx.blank()
+        ua.draw_world(img, 7, cam_z, i if i > on_at[-1] else 0)
+        ua.draw_posts(img, 7, cam_z)
+        lit = sum(1 for t in on_at if i >= t)
+        img = fx.fade(img, 0.88 * (1 - fx.ease_out(lit / len(towers))))
+        d = ImageDraw.Draw(img)
+        for k, x in enumerate(towers):
+            y = ua.HORIZON - 7
+            if i >= on_at[k]:
+                age = i - on_at[k]
+                flare = max(0.0, 1 - age / 6)             # bright burst as it comes on
+                d.line([x - 1, y, x + 1, y], fill=(255, 255, 225))
+                for gx, gy in ((x - 2, y), (x + 2, y), (x, y - 1), (x, y + 1)):
+                    d.point((gx, gy), fill=fx.lerp_color((70, 70, 50), (255, 255, 220), flare))
+                if flare > 0.3:
+                    for gx, gy in ((x - 3, y), (x + 3, y), (x, y - 2), (x, y + 2), (x - 2, y - 1), (x + 2, y + 1),
+                                   (x - 2, y + 1), (x + 2, y - 1)):
+                        d.point((gx, gy), fill=fx.dim((255, 255, 200), flare * 0.7))
+            else:
+                d.line([x - 1, y, x + 1, y], fill=(45, 45, 45))
+        if i in on_at:
+            img = fx.flash(img, 0.18)
+        yield img, FRAME * 1.15
 
 
-def dim(color, amount):
-    return tuple(round(c * amount) for c in color)
+# =============================================================== 2. TITLE ===
 
-
-# ---------------------------------------------------------------- 1. lights --
-
-def stadium(lights_on, flicker_tower=None):
-    """Night stadium. lights_on = how many towers are lit (0-4)."""
-    img = blank()
+def title_scene(i, ver):
+    img = fx.background(stripes=i * 0.5)
     d = ImageDraw.Draw(img)
-    brightness = 0.15 + 0.85 * lights_on / len(TOWERS)
-    # field, with a few yard lines in perspective
-    for y in range(HORIZON, H):
-        d.line([0, y, W - 1, y], fill=dim(GRASS, brightness * (0.6 + 0.4 * (y - HORIZON) / (H - HORIZON))))
-    for y in (19, 22, 27):
-        d.line([0, y, W - 1, y], fill=dim(LINE, brightness * 0.8))
-    # crowd
-    for x, y, c in CROWD:
-        d.point((x, y), fill=dim(c, 0.25 + 0.75 * brightness))
-    # light towers
-    for i, x in enumerate(TOWERS):
-        d.line([x, 6, x, HORIZON - 5], fill=POLE)
-        on = i < lights_on or i == flicker_tower
-        bank = LIGHT if on else (40, 40, 40)
-        d.rectangle([x - 2, 3, x + 2, 5], fill=bank)
-        if on:   # glow
-            for gx, gy in ((x - 3, 4), (x + 3, 4), (x, 2), (x - 2, 2), (x + 2, 2)):
-                d.point((gx, gy), fill=(110, 110, 80))
+    pop = fx.ease_back(i / 7)
+    shine = (i - 16) / 12 if i >= 16 else None
+    fx.draw_text(img, 'NFL', W / 2, 8, 'score_large.otf', 16, colors=SILVER,
+                 scale=fx.lerp(0.5, 1.0, pop), shine=shine)
+    # gold banner slides in under it
+    bar = fx.ease_out((i - 5) / 8) if i >= 5 else 0
+    if bar > 0:
+        left = W - 68 * bar
+        d.polygon([(left + 4, 17), (W, 17), (W, 24), (left, 24)], fill=YELLOW)
+        d.rectangle([W - 2, 17, W - 1, 24], fill=(255, 255, 255))
+        if i >= 9:
+            fx.draw_text(img, 'SCOREBOARD', fx.lerp(W + 30, W / 2, fx.ease_out((i - 9) / 7)), 20.5,
+                         colors=((20, 20, 20), (20, 20, 20)), outline=None, shadow=False)
+    if i >= 14:
+        fx.draw_text(img, f'v{ver}', W / 2, 28.5, colors=(YELLOW, (200, 140, 0)), outline=None,
+                     alpha=fx.clamp((i - 14) / 5))
     return img
 
 
-def lights_frames():
-    frames = [(stadium(0), 0.6)]
-    for tower in range(len(TOWERS)):
-        # a quick flicker before each tower comes on
-        frames += [(stadium(tower, flicker_tower=tower), 0.07), (stadium(tower), 0.07),
-                   (stadium(tower, flicker_tower=tower), 0.05), (stadium(tower), 0.1),
-                   (stadium(tower + 1), 0.35)]
-    frames.append((stadium(len(TOWERS)), 0.6))
-    return frames
+def title_frames(ver, start_from=None):
+    first = title_scene(0, ver)
+    if start_from is not None:
+        for k in range(8):
+            yield fx.wipe(start_from, first, k / 7), FRAME
+    for i in range(36):
+        yield title_scene(i, ver), FRAME
 
 
-# ----------------------------------------------------------- 2. title card --
+# ============================================================= 3. LOADING ===
 
-def title_frames(ver):
-    frames = []
-    for i in range(14):
-        img = stadium(len(TOWERS))
-        # darken the stadium behind the text
-        img = Image.blend(img, blank(), 0.75)
-        d = ImageDraw.Draw(img)
-        d.text((W // 2, 2), 'NFL', font=font_score_large_16, fill='white', anchor='mt')
-        d.text((W // 2, 16), 'SCOREBOARD', font=font_04B_24__8, fill='white', anchor='mt')
-        if i >= 4:
-            d.text((W // 2, 24), f'v{ver}', font=font_04B_24__8, fill=YELLOW, anchor='mt')
-        frames.append((img, 0.12))
-    return frames
+FIELD_LEFT, FIELD_RIGHT, FIELD_TOP, FIELD_BOTTOM = 1, 62, 22, 30
+END_ZONE = 6
+PLAY_LEFT, PLAY_RIGHT = FIELD_LEFT + END_ZONE, FIELD_RIGHT - END_ZONE
 
 
-# --------------------------------------------------------------- 3. loading --
-
-def football(length, angle):
-    s = 4
-    L, T = length * s, int(length * 0.6) * s
-    img = Image.new('RGBA', (L + 2 * s, T + 2 * s), (0, 0, 0, 0))
+def _field():
+    img = Image.new('RGB', (FIELD_RIGHT - FIELD_LEFT + 1, FIELD_BOTTOM - FIELD_TOP + 1))
     d = ImageDraw.Draw(img)
-    d.ellipse([s, s, s + L - 1, s + T - 1], fill=BALL)
-    cx, cy = img.width / 2, img.height / 2
-    d.line([cx - L * 0.2, cy, cx + L * 0.2, cy], fill=LACES, width=s)
-    for k in (-1, 0, 1):
-        x = cx + k * L * 0.12
-        d.line([x, cy - T * 0.2, x, cy + T * 0.2], fill=LACES, width=s)
-    img = img.rotate(angle, resample=Image.BICUBIC, expand=True)
-    return img.resize((max(1, img.width // s), max(1, img.height // s)), Image.LANCZOS)
-
-
-FIELD_LEFT, FIELD_RIGHT, FIELD_TOP, FIELD_BOTTOM = 1, 62, 20, 30
-END_ZONE_WIDTH = 6
-
-
-def loading_frame(step, progress, tick, message_color='white'):
-    """step = text for the current step, progress = 0..1 (ball position)."""
-    img = blank()
-    d = ImageDraw.Draw(img)
-    d.text((W // 2, 1), step, font=font_04B_24__8, fill=message_color, anchor='mt')
-    d.text((W // 2, 9), '.' * (tick // 4 % 4), font=font_04B_24__8, fill='white', anchor='mt')
-    # the field
-    d.rectangle([FIELD_LEFT, FIELD_TOP, FIELD_RIGHT, FIELD_BOTTOM], fill=GRASS)
-    d.rectangle([FIELD_LEFT, FIELD_TOP, FIELD_LEFT + END_ZONE_WIDTH - 1, FIELD_BOTTOM], fill=END_ZONE_LEFT)
-    d.rectangle([FIELD_RIGHT - END_ZONE_WIDTH + 1, FIELD_TOP, FIELD_RIGHT, FIELD_BOTTOM], fill=END_ZONE_RIGHT)
-    play_left, play_right = FIELD_LEFT + END_ZONE_WIDTH, FIELD_RIGHT - END_ZONE_WIDTH
-    for k in range(11):   # every 10 yards
-        x = round(play_left + (play_right - play_left) * k / 10)
-        d.line([x, FIELD_TOP, x, FIELD_BOTTOM], fill=LINE if k in (0, 10) else dim(LINE, 0.6))
-    # the ball, carried downfield, with a little bob
-    x = play_left + (play_right - play_left + END_ZONE_WIDTH // 2) * progress
-    y = (FIELD_TOP + FIELD_BOTTOM) / 2 - (1 if tick % 6 < 3 else 0)
-    sprite = football(9, 10 * math.sin(tick / 3))
-    img.paste(sprite, (round(x - sprite.width / 2), round(y - sprite.height / 2)), sprite)
+    h = img.height
+    # grass with alternating 10-yard stripes
+    for k in range(10):
+        x0 = round(END_ZONE + (PLAY_RIGHT - PLAY_LEFT) * k / 10)
+        x1 = round(END_ZONE + (PLAY_RIGHT - PLAY_LEFT) * (k + 1) / 10)
+        img.paste(fx.vgradient(x1 - x0 + 1, h, (0, 120, 0) if k % 2 else (0, 105, 0), (0, 70, 0)), (x0, 0))
+    # end zones with a diagonal hatch
+    for x0, top, bottom in ((0, (0, 55, 150), (0, 25, 80)), (img.width - END_ZONE, (175, 25, 25), (95, 10, 10))):
+        img.paste(fx.vgradient(END_ZONE, h, top, bottom), (x0, 0))
+        hatch = Image.new('RGB', (END_ZONE, h), fx.lerp_color(top, (255, 255, 255), 0.18))
+        img.paste(hatch, (x0, 0), _hatch_mask(h))
+    # goal lines and yard lines
+    for k in range(11):
+        x = round(END_ZONE + (PLAY_RIGHT - PLAY_LEFT) * k / 10)
+        d.line([x, 0, x, h - 1], fill=(235, 235, 235) if k in (0, 10) else (120, 140, 120))
     return img
 
 
-# --------------------------------------------------------------- 4. kickoff --
-
-def kickoff_frames():
-    frames = []
-    for i in range(8):
-        img = loading_frame('', 1.0, 0)
-        d = ImageDraw.Draw(img)
-        d.rectangle([0, 0, W - 1, FIELD_TOP - 2], fill='black')
-        d.fontmode = '1'
-        d.text((W // 2, 3), 'TOUCHDOWN!', font=font_score_large_14,
-               fill=YELLOW if i % 2 == 0 else 'white', anchor='mt')
-        frames.append((img, 0.18))
-    return frames
+def _hatch_mask(h):
+    m = Image.new('L', (END_ZONE, h), 0)
+    d = ImageDraw.Draw(m)
+    for k in range(-h, END_ZONE + h, 3):
+        d.line([k, h, k + h, 0], fill=255)
+    return m
 
 
-# ------------------------------------------------------------------ runner --
+FIELD = None
+
+
+def down_and_distance(progress):
+    if progress < 0.15:
+        return '1ST & 10'
+    if progress < 0.45:
+        return '2ND & 7'
+    if progress < 0.75:
+        return '3RD & 3'
+    return '4TH & GOAL'
+
+
+def flag_sprite(t):
+    """A yellow penalty flag, flapping a little."""
+    img = Image.new('RGBA', (7, 7), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    wave = 1 if math.sin(t * 2) > 0 else 0
+    d.polygon([(1, 1), (6, 1 + wave), (6, 4 + wave), (1, 4)], fill=YELLOW)
+    d.line([1, 1, 1, 6], fill=(90, 90, 90))
+    return img
+
+
+def loading_frame(step, progress, tick, retry_seconds=None):
+    """step = text for the current step, progress = 0..1 (ball position).
+    retry_seconds = countdown to show while waiting for a connection."""
+    global FIELD
+    if FIELD is None:
+        FIELD = _field()
+    ua = _stadium()
+    alert = retry_seconds is not None
+    img = fx.background(top=(30, 0, 0) if alert else (0, 12, 40), stripes=tick * 0.4)
+    d = ImageDraw.Draw(img)
+
+    # news banner with the step
+    banner = ALERT_RED if alert else NAVY
+    d.rectangle([0, 0, 63, 8], fill=banner)
+    d.line([0, 9, 63, 9], fill=fx.dim(YELLOW, 0.6) if not alert else (255, 90, 90))
+    if fx.text_width(step) <= 54:          # edge markers, when there's room
+        d.rectangle([0, 0, 1, 8], fill=YELLOW)
+        d.rectangle([62, 0, 63, 8], fill=YELLOW)
+    dots = '' if alert else '.' * (tick // 5 % 4)
+    label = step if fx.text_width(step + '...') > 58 else step + dots
+    fx.draw_text(img, label, W / 2 + (0 if label == step else (fx.text_width(step + '...') - fx.text_width(label)) / 2),
+                 4.5, outline=None, shadow=False,
+                 alpha=1 if not alert else (1 if tick % 8 < 6 else 0.4))
+
+    # TV down-and-distance box
+    text = (f'RETRY IN {retry_seconds}' if tick % 24 >= 12 else 'DELAY OF GAME') if alert else down_and_distance(progress)
+    tw = fx.text_width(text)
+    box_l, box_r = round(W / 2 - tw / 2 - 4), round(W / 2 + tw / 2 + 3)
+    d.rectangle([box_l, 12, box_r, 19], fill=(10, 10, 10))
+    d.rectangle([box_l, 12, box_r, 19], outline=YELLOW if not alert else (255, 90, 90))
+    fx.draw_text(img, text, W / 2, 16, colors=((255, 255, 255), (200, 200, 200)) if not alert else (YELLOW, YELLOW),
+                 outline=None, shadow=False)
+
+    # the field, the ball and its shadow
+    img.paste(FIELD, (FIELD_LEFT, FIELD_TOP))
+    x = PLAY_LEFT + (PLAY_RIGHT - PLAY_LEFT + END_ZONE // 2) * fx.clamp(progress)
+    y = (FIELD_TOP + FIELD_BOTTOM) / 2
+    d.ellipse([x - 3, FIELD_BOTTOM - 3, x + 3, FIELD_BOTTOM - 1], fill=(0, 45, 0))
+    bob = 0 if alert else (1 if tick % 6 < 3 else 0)
+    ball = ua.spiral_ball(9, 0 if alert else tick * 0.8, tilt=-8)
+    img.paste(ball, (round(x - ball.width / 2), round(y - 1 - bob - ball.height / 2)), ball)
+    if alert:   # flag thrown onto the field ahead of the ball
+        flag = flag_sprite(tick / 3)
+        img.paste(flag, (round(min(x + 8, PLAY_RIGHT - 7)), FIELD_TOP + 1), flag)
+    return img
+
+
+# =========================================================== 4. TOUCHDOWN ===
+
+def touchdown_frames(start_from=None):
+    confetti = fx.Confetti(seed=5)
+    if start_from is not None:
+        for k in range(3):
+            yield fx.flash(start_from, 0.7 - 0.2 * k), FRAME
+    last = None
+    for i in range(30):
+        img = fx.background(top=(30, 20, 0), bottom=(0, 0, 0))
+        confetti.step_and_draw(img, i)
+        shine = (i - 10) / 12 if i >= 10 else None
+        fx.draw_text(img, 'TOUCHDOWN!', W / 2, 13, 'score_large.otf', 14, colors=GOLD,
+                     scale=fx.lerp(0.5, 1.0, fx.ease_out(i / 5)), shine=shine)
+        if i >= 8:
+            fx.draw_text(img, "LET'S PLAY", W / 2, 26, colors=SILVER, outline=None,
+                         alpha=fx.clamp((i - 8) / 5))
+        last = img
+        yield img, FRAME
+    for k in range(8):
+        yield fx.fade(last, k / 7), FRAME
+
+
+# =============================================================== runner ===
+
+_last = {}      # last frame shown per matrix, so the next scene can wipe/flash from it
+_loading_shown = set()
+
 
 class Loader:
-    """Runs the loading work in a background thread and animates the field
-    on the main thread until it's done.
+    """Runs the loading work in a background thread and animates on the main
+    thread until it's done.
 
         def work(step):
             step('LOADING TEAMS', 0.3)
@@ -200,7 +268,7 @@ class Loader:
     """
     def __init__(self, matrix, retry_on=(), first_step=('STARTING UP', 0.0)):
         self.matrix = matrix
-        self.retry_on = retry_on            # exception types that mean "try again"
+        self.retry_on = retry_on
         self.step_text, self.target = first_step
         self.error = None
         self.done = False
@@ -217,8 +285,18 @@ class Loader:
         finally:
             self.done = True
 
+    def _show(self, img, seconds):
+        _last[id(self.matrix)] = img
+        self.matrix.SetImage(img, 0, 0)
+        time.sleep(seconds)
+
     def run(self, work):
         tick, shown = 0, 0.0
+        previous = _last.get(id(self.matrix))
+        if previous is not None and id(self.matrix) not in _loading_shown:   # wipe in from the title card
+            first = loading_frame(self.step_text, 0.0, 0)
+            play(self.matrix, ((fx.wipe(previous, first, k / 7), FRAME) for k in range(8)))
+        _loading_shown.add(id(self.matrix))
         while True:
             self.done, self.error = False, None
             started = time.time()
@@ -229,57 +307,73 @@ class Loader:
                     self.target = 1.0
                 if self.done and self.error is not None:
                     break
-                shown += (self.target - shown) * 0.15           # ease the ball towards its target
-                show(self.matrix, loading_frame(self.step_text, shown, tick), FRAME_SECONDS)
+                shown += (self.target - shown) * 0.15
+                self._show(loading_frame(self.step_text, shown, tick), FRAME)
                 tick += 1
 
             if self.error is None:
                 return
             if not isinstance(self.error, self.retry_on):
                 raise self.error
-            # no connection yet: say so, wait, then try again from the start
             print(f'Startup: no connection ({self.error}), retrying in {RETRY_SECONDS}s')
             traceback.print_exception(type(self.error), self.error, self.error.__traceback__, limit=1)
-            for i in range(int(RETRY_SECONDS / 0.25)):
-                text = 'NO CONNECTION' if (i // 4) % 2 == 0 else 'RETRYING'
-                show(self.matrix, loading_frame(text, shown, tick, message_color=(255, 80, 80)), 0.25)
-                tick += 3
+            end = time.time() + RETRY_SECONDS
+            while time.time() < end:
+                left = max(1, math.ceil(end - time.time()))
+                self._show(loading_frame('NO CONNECTION', shown, tick, retry_seconds=left), FRAME)
+                tick += 1
             self.step_text = 'STARTING UP'
 
 
 def intro(matrix, ver=None):
-    """Stadium lights and title card."""
+    """Cold open and title card."""
     ver = ver or version()
-    for img, seconds in lights_frames() + title_frames(ver):
-        show(matrix, img, seconds)
-
-
-def kickoff(matrix):
-    for img, seconds in kickoff_frames():
-        show(matrix, img, seconds)
+    def frames():
+        last = None
+        for img, seconds in cold_open_frames():
+            last = img
+            yield img, seconds
+        yield from title_frames(ver, start_from=last)
+    play(matrix, frames())
+    _last[id(matrix)] = title_scene(35, ver)
 
 
 def checking_updates(matrix):
     """A still loading frame while the update check talks to GitHub."""
-    matrix.SetImage(loading_frame('CHECKING UPDATES', 0.0, 0), 0, 0)
+    img = loading_frame('CHECKING UPDATES', 0.0, 0)
+    first = _last.get(id(matrix))
+    if first is not None:
+        play(matrix, ((fx.wipe(first, img, k / 7), FRAME) for k in range(8)))
+    _last[id(matrix)] = img
+    _loading_shown.add(id(matrix))
+    matrix.SetImage(img, 0, 0)
 
 
-def preview_frames(ver='01.01.10'):
+def kickoff(matrix):
+    play(matrix, touchdown_frames(start_from=_last.get(id(matrix))))
+
+
+def preview_frames(ver='01.01.11'):
     """Every frame of a startup, including a no-connection retry, for test mode."""
-    frames = lights_frames() + title_frames(ver)
+    frames, last = [], None
+    for img, s in cold_open_frames():
+        frames.append((img, s)); last = img
+    frames += list(title_frames(ver, start_from=last))
+    title_last = frames[-1][0]
+    first_loading = loading_frame('CHECKING UPDATES', 0.0, 0)
+    frames += [(fx.wipe(title_last, first_loading, k / 7), FRAME) for k in range(8)]
     steps = [('CHECKING UPDATES', 0.0), ('LOADING TEAMS', 0.3), ('LOADING LOGOS', 0.6), ('GETTING SCORES', 0.85)]
     shown, tick = 0.0, 0
     for text, target in steps:
-        for _ in range(14):
+        for _ in range(16):
             shown += (target - shown) * 0.15
-            frames.append((loading_frame(text, shown, tick), FRAME_SECONDS))
+            frames.append((loading_frame(text, shown, tick), FRAME))
             tick += 1
-    for i in range(16):
-        text = 'NO CONNECTION' if (i // 4) % 2 == 0 else 'RETRYING'
-        frames.append((loading_frame(text, shown, tick, message_color=(255, 80, 80)), 0.25))
-        tick += 3
-    for _ in range(25):
-        shown += (1.0 - shown) * 0.15
-        frames.append((loading_frame('GETTING SCORES', shown, tick), FRAME_SECONDS))
+    for k in range(int(4 / FRAME)):
+        frames.append((loading_frame('NO CONNECTION', shown, tick, retry_seconds=4 - int(k * FRAME)), FRAME))
         tick += 1
-    return frames + kickoff_frames()
+    for _ in range(28):
+        shown += (1.0 - shown) * 0.15
+        frames.append((loading_frame('GETTING SCORES', shown, tick), FRAME))
+        tick += 1
+    return frames + list(touchdown_frames(start_from=frames[-1][0]))
