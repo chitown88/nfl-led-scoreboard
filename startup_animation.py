@@ -28,6 +28,7 @@ import traceback
 from PIL import Image, ImageDraw
 
 import fx
+import league_logo
 from fx import W, GOLD, SILVER
 from paths import BASE_DIR
 
@@ -87,6 +88,36 @@ def cold_open_frames():
         if i in on_at:
             img = fx.flash(img, 0.18)
         yield img, FRAME * 1.15
+
+
+# ========================================================== LOGO REVEAL ===
+
+def logo_frames(logo, start_from=None):
+    """The league logo zooms in over slowly turning light rays, lands with a
+    flash, then a shine sweeps across it."""
+    sprite = logo.copy()
+    sprite.thumbnail((44, 28), Image.LANCZOS)
+    steps = 34
+    frames = []
+    for i in range(steps):
+        img = fx.background(top=(0, 10, 35), bottom=(0, 0, 0))
+        d = ImageDraw.Draw(img)
+        # light rays behind the logo
+        for k in range(10):
+            a = i * 0.03 + k * math.pi / 5
+            p1 = (32 + math.cos(a - 0.12) * 50, 16 + math.sin(a - 0.12) * 50)
+            p2 = (32 + math.cos(a + 0.12) * 50, 16 + math.sin(a + 0.12) * 50)
+            d.polygon([(32, 16), p1, p2], fill=(0, 22, 60))
+        scale = fx.lerp(0.35, 1.0, fx.ease_back(i / 9))
+        s = sprite.resize((max(1, round(sprite.width * scale)), max(1, round(sprite.height * scale))), Image.LANCZOS)
+        s = fx.shine_image(s, (i - 14) / 12 if i >= 14 else None)
+        img.paste(s, (round(32 - s.width / 2), round(16 - s.height / 2)), s)
+        if 9 <= i <= 10:
+            img = fx.flash(img, 0.45 if i == 9 else 0.2)
+        frames.append((img, FRAME))
+    if start_from is not None:
+        frames = [(fx.wipe(start_from, frames[0][0], k / 7), FRAME) for k in range(8)] + frames
+    return frames
 
 
 # =============================================================== 2. TITLE ===
@@ -326,13 +357,20 @@ class Loader:
 
 
 def intro(matrix, ver=None):
-    """Cold open and title card."""
+    """Cold open, league logo (once it's been downloaded) and title card."""
     ver = ver or version()
+    league_logo.ensure_in_background()     # fetch it for next time if we don't have it
+    logo = league_logo.get()
+
     def frames():
         last = None
         for img, seconds in cold_open_frames():
             last = img
             yield img, seconds
+        if logo is not None:
+            for img, seconds in logo_frames(logo, start_from=last):
+                last = img
+                yield img, seconds
         yield from title_frames(ver, start_from=last)
     play(matrix, frames())
     _last[id(matrix)] = title_scene(35, ver)
@@ -358,6 +396,15 @@ def preview_frames(ver='01.01.11'):
     frames, last = [], None
     for img, s in cold_open_frames():
         frames.append((img, s)); last = img
+    logo = league_logo.get()
+    if logo is None:                       # test mode: try to fetch it now
+        try:
+            logo = league_logo.download()
+        except Exception as e:
+            print(f'League logo not available, previewing without it: {e}')
+    if logo is not None:
+        frames += logo_frames(logo, start_from=last)
+        last = frames[-1][0]
     frames += list(title_frames(ver, start_from=last))
     title_last = frames[-1][0]
     first_loading = loading_frame('CHECKING UPDATES', 0.0, 0)
