@@ -18,9 +18,9 @@ import argparse
 arg_parser = argparse.ArgumentParser(description='NFL LED Scoreboard')
 arg_parser.add_argument('--production', '-production', action='store_true',
                         help='drive the physical LED matrix instead of the emulator')
-arg_parser.add_argument('--test', nargs='*', choices=['pre', 'post', 'live', 'summary', 'update'], metavar='SCREEN',
+arg_parser.add_argument('--test', nargs='*', choices=['pre', 'post', 'live', 'summary', 'update', 'startup'], metavar='SCREEN',
                         help='show dummy data from test_data.json instead of ESPN. '
-                             'Optionally pick screens: pre post live summary update (default: all)')
+                             'Optionally pick screens: pre post live summary update startup (default: all)')
 arg_parser.add_argument('--teams', nargs='+', type=str.upper, metavar='TEAM',
                         help='with --test, only show these teams, e.g. --teams NYG LAR')
 arg_parser.add_argument('--images', action='store_true',
@@ -85,31 +85,45 @@ if args.test is not None:
     test_mode.run(matrix, screens=args.test, teams=args.teams)
     sys.exit(0)
 
+import startup_animation
+startup_animation.intro(matrix)
+
 # Pi only: update from GitHub first if version.json there is newer
 if args.production:
+    startup_animation.checking_updates(matrix)
     import updater
     updater.check_for_update(matrix, force=True)
 
-import espn_api
+
+def load_everything(step):
+    """Everything that has to happen before the first screen. Runs in the
+    background while the startup animation plays; each step moves the ball."""
+    global espn_api, scoreboard, team_summary, standings, clock, team_ids, team_names_to_id
+    step('LOADING TEAMS', 0.3)
+    import espn_api
+    import scoreboard
+    import team_summary
+    import standings
+    import clock
+    step('LOADING LOGOS', 0.6)
+    import load_static_data
+    try:
+        load_static_data.load()
+    except Exception as e:
+        print(f'Logo update failed, using cached logos: {e}')
+    step('GETTING SCORES', 0.85)
+    team_ids, team_names_to_id = espn_api.get_team_ids()
+
+
+import requests
+# no internet yet (e.g. straight after the Pi boots): show NO CONNECTION and retry
+startup_animation.Loader(matrix, retry_on=(requests.exceptions.RequestException,)).run(load_everything)
+startup_animation.kickoff(matrix)
 
 import scoreboard_logo_config
 layout_team_pregame = scoreboard_logo_config.layout_team_pregame
 
-import scoreboard
-import team_summary
-import standings
-import clock
-
-import load_static_data
-
-try:
-    load_static_data.load()
-except Exception as e:
-    print(f'Logo update failed, using cached logos: {e}')
-
-
 favorites = ['Bears','Bengals']
-team_ids, team_names_to_id = espn_api.get_team_ids()
 
 timeZone = 'US/Central'
 timezone = 'Europe/London'
