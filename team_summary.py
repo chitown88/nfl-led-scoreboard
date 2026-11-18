@@ -30,6 +30,17 @@ timeZone = 'Europe/London'
 
 team_colors = team_color_config.team_colors
 
+def find_division_place(node, team_id):
+    if 'standings' in node:
+        for i, entry in enumerate(node['standings'].get('entries', []), start=1):
+            if entry['team']['id'] == str(team_id):
+                return i
+    for child in node.get('children', []):
+        result = find_division_place(child, team_id)
+        if result:
+            return result
+    return None
+
 def run_team_summary(matrix, display_width, display_height):
     url = 'http://sports.core.api.espn.com/v2/sports/football/leagues/nfl/calendar/ondays'
     jsonData = requests.get(url).json()
@@ -71,9 +82,19 @@ def run_team_summary(matrix, display_width, display_height):
                 raise ValueError("{teamData['seasonSummary']} not current {currentSeason} season")
         except:
             standingSummary = '99'
-        place = int(re.findall(r'\d+', standingSummary)[0])
+        #place = int(re.findall(r'\d+', standingSummary)[0])
+        
+        divStandings = requests.get('https://site.api.espn.com/apis/v2/sports/football/nfl/standings',
+                                        params={'level': '3'}).json()
+        place = find_division_place(divStandings, teamId)
+        if place is None:
+            place = int(re.findall(r'\d+', standingSummary)[0])
+        
         placeOutputText = {1:'1st PLACE', 2:'2nd PLACE', 3:'3rd PLACE', 4:'4th PLACE', 5:'5th PLACE', 99:'PRESEASON'}
         place = placeOutputText[place]
+
+
+
     
         
         try:
