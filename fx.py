@@ -138,6 +138,20 @@ def draw_text(img, text, cx, cy, font_name='04B_24__.TTF', size=8,
     return img
 
 
+def shine_image(sprite, t, width=4):
+    """A diagonal highlight sweeping across an RGBA sprite (t runs 0..1)."""
+    if t is None or not 0 <= t <= 1:
+        return sprite
+    w, h = sprite.size
+    band = Image.new('L', (w, h), 0)
+    c = -h + t * (w + 2 * h)
+    ImageDraw.Draw(band).polygon([(c, 0), (c + width, 0), (c + width - h * 0.7, h), (c - h * 0.7, h)], fill=170)
+    band = ImageChops.multiply(band, sprite.getchannel('A'))
+    out = sprite.copy()
+    out.paste((255, 255, 255, 255), (0, 0), band)
+    return out
+
+
 GOLD = ((255, 240, 140), (225, 140, 0))
 SILVER = ((215, 222, 235), (105, 115, 135))
 RED = ((255, 120, 110), (190, 0, 0))
