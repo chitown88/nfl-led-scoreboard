@@ -26,7 +26,7 @@ import traceback
 
 from PIL import Image, ImageDraw
 
-from fonts import font_04B_24__8, font_score_large_16, font_score_large_14
+from fonts import font_04B_24__8, font_score_large_16, font_score_large_12
 from paths import BASE_DIR
 
 W, H = 64, 32
@@ -121,7 +121,7 @@ def title_frames(ver):
         # darken the stadium behind the text
         img = Image.blend(img, blank(), 0.75)
         d = ImageDraw.Draw(img)
-        d.text((W // 2, 2), 'NFL', font=font_score_large_16, fill='white', anchor='mt')
+        d.text((W // 2, 2), 'NFL', font=6, fill='white', anchor='mt')
         d.text((W // 2, 16), 'SCOREBOARD', font=font_04B_24__8, fill='white', anchor='mt')
         if i >= 4:
             d.text((W // 2, 24), f'v{ver}', font=font_04B_24__8, fill=YELLOW, anchor='mt')
@@ -180,7 +180,7 @@ def kickoff_frames():
         img = loading_frame('', 1.0, 0)
         d = ImageDraw.Draw(img)
         d.rectangle([0, 0, W - 1, FIELD_TOP - 2], fill='black')
-        d.text((W // 2, 3), 'TOUCHDOWN!', font=font_score_large_14,
+        d.text((W // 2, 3), 'TOUCHDOWN!', font=font_score_large_12,
                fill=YELLOW if i % 2 == 0 else 'white', anchor='mt')
         frames.append((img, 0.18))
     return frames
