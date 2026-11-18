@@ -27,7 +27,7 @@ BRANCH = 'main'
 VERSION_FILE = os.path.join(BASE_DIR, 'version.json')
 REMOTE_VERSION_URL = f'https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/version.json'
 
-CHECK_EVERY_HOURS = 3
+CHECK_EVERY_HOURS = .5
 _last_check = 0
 
 
