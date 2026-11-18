@@ -46,9 +46,9 @@ layout_team_pregame ={
         'zoom':1.5},
     'CHI':{
         'position':{
-            'home':(39,0),
-            'away':(-8,0)},
-        'zoom':1.0},
+            'home':(39,-2),
+            'away':(-8,-2)},
+        'zoom':1.1},
     'CIN':{
         'position':{
             'home':(27,-6),
