@@ -180,6 +180,7 @@ def kickoff_frames():
         img = loading_frame('', 1.0, 0)
         d = ImageDraw.Draw(img)
         d.rectangle([0, 0, W - 1, FIELD_TOP - 2], fill='black')
+        d.fontmode = '1'
         d.text((W // 2, 3), 'TOUCHDOWN!', font=font_score_large_14,
                fill=YELLOW if i % 2 == 0 else 'white', anchor='mt')
         frames.append((img, 0.18))
