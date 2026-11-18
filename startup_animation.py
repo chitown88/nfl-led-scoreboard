@@ -6,7 +6,7 @@ Startup animation: shown while the scoreboard boots.
     2. Title card with the version number
     3. Loading: a mini football field is the progress bar; the ball moves
        downfield as each real loading step finishes
-    4. "KICKOFF!" when the ball reaches the end zone
+    4. "TOUCHDOWN!" when the ball reaches the end zone
 
 If there's no internet yet (common straight after the Pi boots), it shows
 "NO CONNECTION" and retries instead of crashing.
@@ -180,7 +180,7 @@ def kickoff_frames():
         img = loading_frame('', 1.0, 0)
         d = ImageDraw.Draw(img)
         d.rectangle([0, 0, W - 1, FIELD_TOP - 2], fill='black')
-        d.text((W // 2, 3), 'KICKOFF!', font=font_score_large_16,
+        d.text((W // 2, 3), 'TOUCHDOWN!', font=font_score_large_16,
                fill=YELLOW if i % 2 == 0 else 'white', anchor='mt')
         frames.append((img, 0.18))
     return frames
