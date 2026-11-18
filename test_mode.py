@@ -26,6 +26,7 @@ from PIL import Image, ImageDraw
 
 import render
 import update_animation
+import startup_animation
 import scoreboard_logo_config
 import team_summary_logo_config
 import team_color_config
@@ -33,7 +34,7 @@ from paths import BASE_DIR
 
 TEST_DATA_FILE = os.path.join(BASE_DIR, 'test_data.json')
 OUTPUT_DIR = os.path.join(BASE_DIR, 'test_output')
-ALL_SCREENS = ['pre', 'post', 'live', 'summary', 'update']
+ALL_SCREENS = ['startup', 'pre', 'post', 'live', 'summary', 'update']
 WIDTH, HEIGHT = 64, 32
 SUMMARY_SCROLL = [('top', 0), ('middle', -21), ('bottom', -42)]   # where team_summary.py pauses
 
@@ -193,11 +194,14 @@ def save_images(screens=None, teams=None):
     reload_layouts()
 
     for screen in screens:
-        if screen == 'update':
-            frames = update_animation.preview_frames()
+        if screen in ('update', 'startup'):
+            if screen == 'update':
+                frames, title = update_animation.preview_frames(), 'UPDATE ANIMATION - every other frame, success then failure'
+            else:
+                frames, title = startup_animation.preview_frames(), 'STARTUP ANIMATION - every other frame, including a no-connection retry'
             tiles = [(f'frame {k + 1}', image) for k, (image, _) in enumerate(frames) if k % 2 == 0]
-            sheet = contact_sheet(tiles, 'UPDATE ANIMATION - every other frame, success then failure', scale, 8)
-            path = os.path.join(OUTPUT_DIR, 'test_update.png')
+            sheet = contact_sheet(tiles, title, scale, 8)
+            path = os.path.join(OUTPUT_DIR, f'test_{screen}.png')
             sheet.save(path)
             print(f'Saved {path}')
             continue
@@ -246,6 +250,10 @@ def run(matrix, screens=None, teams=None):
                 if screen == 'update':
                     print('  update animation (success, then failure)')
                     update_animation.play(matrix, update_animation.preview_frames())
+                    continue
+                if screen == 'startup':
+                    print('  startup animation (with a no-connection retry)')
+                    update_animation.play(matrix, startup_animation.preview_frames())
                     continue
                 scenarios = test_data['team_summary' if screen == 'summary' else screen]
 
