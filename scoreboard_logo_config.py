@@ -102,7 +102,7 @@ layout_team_pregame ={
     'LV':{
         'position':{
             'home':(40,-3),
-            'away':(-17,-3)},
+            'away':(-15,-3)},
         'zoom':1.1},
     'LAC':{
         'position':{
